@@ -53,7 +53,7 @@ void setup(){
   Wire.begin();
   SPI.begin();
   state.setup();
-  connections.setup(state.ssid, state.password);
+  connections.setup(state);
   camera.setup();
 
 /* figure this mqtt logging out

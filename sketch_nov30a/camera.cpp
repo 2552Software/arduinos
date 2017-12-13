@@ -7,7 +7,6 @@
 
 #include "camera.h"
 
-
 // get from the camera
 void Camera::capture(){
   int total_time = 0;
@@ -38,7 +37,7 @@ bool  Camera::findCamera(){
     Log.trace(F("OV2640 not detected, vid %x, pid %x"), vid, pid);
   }
   else {
-    Log.notice(F("OV2640 detected"));
+    connections.trace("OV2640 detected");
     return true;
   }
 #elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
@@ -50,7 +49,7 @@ bool  Camera::findCamera(){
      Log.trace(F("OV5640 not detected"));
   }
   else {
-    Log.notice(F("OV5640 detected"));
+    connections.trace("OV5640 detected");
     return true;
   }
 #elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || (defined (OV5642_CAM))
@@ -62,11 +61,11 @@ bool  Camera::findCamera(){
      Log.trace(F("OV5642 not detected"));
    }
    else {
-    Log.notice(F("OV5642 detected"));
+    connections.trace("OV5642 detected");
     return true;
    }
 #endif
-  Log.notice(F("no cam detected"));
+  connections.error("no cam detected");
   return false;// no cam
 }
 void Camera::initCam(){
@@ -77,15 +76,15 @@ void Camera::initCam(){
   //bugbug todo allow mqtt based set of these, then a restart if needed, store in config file
 #if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
     myCAM.OV2640_set_JPEG_size(OV2640_800x600); //OV2640_320x240 OV2640_800x600 OV2640_640x480 OV2640_1024x768 OV2640_1600x1200
-    Log.notice(F("init OV2640_800x600"));
+    connections.trace("init OV2640_800x600");
 #elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
     myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
     myCAM.OV5640_set_JPEG_size(OV5640_320x240);
-    Log.notice(F("init OV5640_320x240"));
+    communication.trace("init OV5640_320x240");
 #elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) ||(defined (OV5642_CAM))
     myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
     myCAM.OV5642_set_JPEG_size(OV5642_320x240);  
-    Log.notice(F("init OV5642_320x240"));
+    connections.trace("init OV5642_320x240");
 #endif
 
 }
@@ -100,12 +99,12 @@ void Camera::setup(){
     //Check if the ArduCAM SPI bus is OK
     myCAM.write_reg(ARDUCHIP_TEST1, 0x55);
     if(myCAM.read_reg(ARDUCHIP_TEST1) != 0x55){
-      Log.error(F("SPI interface Error!"));
-      delay(2);
+      connections.error("SPI interface Error!");
+      delay(20);
       continue;
     }
     else {
-      Log.trace(F("SPI interface to camera found"));
+      connections.trace("SPI interface to camera found");
       break;
     }
   } 
@@ -117,7 +116,7 @@ void Camera::setup(){
       break;
     }
     if (i++ > 5){
-      Log.error(F("start over try to find camera"));
+      connections.error("restart esp to try to find camera"); //bugbug this does not seem to help problem is intermitant
       esp_restart();
     }
   }
@@ -142,25 +141,24 @@ void Camera::captureAndSend(const char * path, Connections&connections){
   
   if (length >= MAX_FIFO_SIZE) {
      Log.error(F("len %d, MAX_FIFO_SIZE is %d, ignore"), length, MAX_FIFO_SIZE);
+     connections.error("fifo too big");
      return;
   }
   if (length == 0 )   {
      Log.error(F("len is 0 ignore"));
+     connections.error("fifo 0");
      return;
   }
 
   // will send file in parts
   uint8_t* buf = new uint8_t[MQTT_MAX_PACKET_SIZE];
   if (buf == nullptr){
-     Log.error(F("mem 1 size %d"), MQTT_MAX_PACKET_SIZE+MQTT_HEADER_SIZE);
+     connections.error("no mem");
      return;
   }
   // let reader know we are coming so they can start saving data
   DynamicJsonBuffer jsonBuffer;
   JsonObject& JSONencoder = jsonBuffer.createObject();
-  JSONencoder["device"] = "ESP32";//give it a unique name bugbug todo
-  JSONencoder["type"] = "camera";
-  JSONencoder["cmd"] = "startjpg";
   JSONencoder["path"] = path; // also name of topic with data
   connections.sendToMQTT("dataready", JSONencoder);
 
@@ -187,9 +185,6 @@ void Camera::captureAndSend(const char * path, Connections&connections){
         // send MQTT start xfer message
         DynamicJsonBuffer jsonBuffer;
         JsonObject& JSONencoder = jsonBuffer.createObject();
-        JSONencoder["device"] = "ESP32";//give it a unique name bugbug todo
-        JSONencoder["type"] = "camera";
-        JSONencoder["cmd"] = "newjpg";
         JSONencoder["path"] = path; // also name of topic with data
         JSONencoder["len"] = total; // server can compare len with actual data lenght to make sure data was not lost
         connections.sendToMQTT("datafinal", JSONencoder);

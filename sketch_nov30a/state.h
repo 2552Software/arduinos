@@ -10,6 +10,7 @@ static const int MAX_PWD_LEN = 16;
 static const int MAX_SSID_LEN = 16;
 static const char* SSID = "SAM-Home"; // create a SSID of WIFI1 outside of this env. to use 3rd party wifi like mobile access point or such. If no such SSID is created we will create one here
 static const char* PWD = NULL; // never set here, set in the run time that stores config, todo bugbug make api to change
+static const char *defaultConfig = "/config.json";
 
 class State {
 public:
@@ -20,13 +21,13 @@ public:
 	char password[MAX_PWD_LEN];
 	char other[16];
 	uint32_t priority;
+  uint32_t type=0; // 0 is cam
 	int sleepTimeS;
 	void set();
 	void get();
 	void setDefault();
 	void echo();
 private:
-	const char *defaultConfig = "/config.json";
 };
 extern State state;
 #endif

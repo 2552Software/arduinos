@@ -8,7 +8,18 @@
 
 // send to serial and mqtt if mqtt connected, msg must be null terminated string
 void Connections::trace(const char*msg){
-  sendToMQTT("trace", msg);
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& JSONencoder = jsonBuffer.createObject();
+  JSONencoder["msg"] = msg;
+  sendToMQTT("trace", JSONencoder);
+  Log.trace(msg);
+}
+void Connections::error(const char*msg){
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& JSONencoder = jsonBuffer.createObject();
+  JSONencoder["msg"] = msg;
+  sendToMQTT("error", JSONencoder);
+  Log.error(msg);
 }
 void Connections::loop(){
   if (!wifiClient.connected()) {
@@ -21,14 +32,16 @@ void Connections::loop(){
 bool Connections::sendToMQTT(const char*topic, const char*payload){
   connect(); // do as much as we can to work with bad networks
   if (!mqttClient.publish(topic, payload)) {
-    Log.error("sending binary message to mqtt %s", topic);
+    Log.error("sending binary message to mqtt %s, payload %s", topic, payload);
     return false;
   }
- }
+}
 
 // send to mqtt, binary is only partily echoed
 bool Connections::sendToMQTT(const char*topic, JsonObject& root){
   String output;
+  root["name"] = state.name; // changes returned json too
+  root["type"] = state.type;
   root.printTo(output);
   Log.trace(F("sending message to MQTT, topic is %s ;"), topic);
   Log.trace(output.c_str());
@@ -56,11 +69,11 @@ boolean Connections::sendToMQTT(const char* topic, const uint8_t * payload, unsi
 // timeout connection attempt
 uint8_t Connections::waitForResult(int connectTimeout) {
   if (connectTimeout == 0) {
-    Log.trace(F("Waiting for connection result without timeout" CR));
+    Log.trace(F("Waiting for connection result without timeout"));
     return WiFi.waitForConnectResult();
   } 
   else {
-    Log.trace(F("Waiting for connection result with time out of %d" CR), connectTimeout);
+    Log.trace(F("Waiting for connection result with time out of %d"), connectTimeout);
     unsigned long start = millis();
     uint8_t status;
     while (1) {
@@ -87,20 +100,20 @@ uint8_t Connections::waitForResult(int connectTimeout) {
 
 // allow for reconnect, can be called often it needs to be fast
 void Connections::connect(){
-  if (*ssid == '\0'){
+  if (*state.ssid == '\0'){
       Log.error("missing ssid FAIL");
       return;
   }
   //https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/include/wl_definitions.h
   if (!WiFi.isConnected()){
     Log.trace(F("WiFi.status() != WL_CONNECTED"));
-    if (*password != '\0'){
-      Log.notice("Connect to WiFi... %s %s", ssid, password);
-      WiFi.begin(ssid, password);
+    if (*state.password != '\0'){
+      Log.notice("Connect to WiFi... %s %s", state.ssid, state.password);
+      WiFi.begin(state.ssid, state.password);
     }
     else {
-      Log.notice("Connect to WiFi... %s", ssid);
-      WiFi.begin(ssid);
+      Log.notice("Connect to WiFi... %s", state.ssid);
+      WiFi.begin(state.ssid);
     }
     waitForResult(10000);
     if (!WiFi.isConnected()) {
@@ -121,11 +134,7 @@ void Connections::connectMQTT() {
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (mqttClient.connect(clientId.c_str())) {
-      Log.trace("connected");
-      // Once connected, publish an announcement...
-      mqttClient.publish("outTopic", "hello world");
-      // ... and resubscribe
-      mqttClient.subscribe("inTopic");
+      trace("hello");
     } else {
       Log.notice("failed, rc=%d try again in 5 seconds", mqttClient.state());
       delay(5000);
@@ -161,15 +170,17 @@ void Connections::makeAP(char *ssid, char*pwd){
     isSoftAP = true; //todo bugbug PI will need to keep trying to connect to this AP
 }
 
-void Connections::setup(char *ssidIn, char *pwd){
-  snprintf(ssid, sizeof(ssid), ssidIn);   
-  if (pwd){
-    snprintf(password, sizeof(password), pwd);  
+void Connections::setup(const State& stateIn){
+  if (stateIn.name == '\0'){
+    Log.error("name required");
+    return;
   }
-  else {
-    *password = '\0';
+  if (*stateIn.ssid == '\0'){
+    Log.error("ssid required");
+    return;
   }
-  Log.trace(F("Connections::setup, server %s, port %d, ssid %s"), ipServer, MQTTport, ssid);
+  state = stateIn;
+  Log.trace(F("Connections::setup, server %s, port %d, ssid %s"), ipServer, MQTTport, state.ssid); //bugbug todo ipServer and port should be in state
   //put a copy in here when ready blynk_token[33] = "YOUR_BLYNK_TOKEN";//todo bugbug
   mqttClient.setServer(ipServer, MQTTport);
   mqttClient.setCallback(input);
@@ -198,9 +209,7 @@ void Connections::WiFiEvent(WiFiEvent_t event) {
     Log.notice("LocalIP: %s", WiFi.localIP().toString().c_str());
     break;
   default:
-    char text[32];
-    snprintf(text, 32, "[WiFi-event] event: %d", event); // just use incrementor and unique name/type bugbug todo
-    Log.notice(text); //bugbug todo get this to send via mqtt
+    Log.notice("[WiFi-event] event: %d", event);
   }
 }
 

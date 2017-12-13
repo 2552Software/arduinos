@@ -40,7 +40,7 @@ void State::powerSleep(){ // sleep when its ok to save power
 }
 
 void State::echo(){
-  Log.notice(F("name %s, ssid: %s, pwd %s: other: %s, sleep time in seconds %d"), name, ssid, password, other, sleepTimeS);
+  Log.notice(F("name %s, type %d, ssid: %s, pwd %s: other: %s, sleep time in seconds %d"), name, type, ssid, password, other, sleepTimeS);
 }
 
 void State::setDefault(){
@@ -58,6 +58,7 @@ void State::setDefault(){
   snprintf(name, sizeof(name), "cam-%X%X",(uint16_t)(chipid>>32), (uint32_t)chipid);   
   other[0] = '\0';
   sleepTimeS=10;
+  type = 0;
   priority = 1; // each esp can have a start priority defined by initial sleep 
   echo();
 }
@@ -72,6 +73,7 @@ void State::set(){
     }
     else {
       json["name"] = name;
+      json["type"] = type;
       json["ssid"] = ssid;
       json["pwd"] = password;
       json["other"] = other;
@@ -101,11 +103,12 @@ void State::get(){
       json.printTo(Serial);
       if (json.success()) {
         Log.notice("parsed json A OK");
+        snprintf(name, sizeof(name), json["name"]);   
         snprintf(ssid, sizeof(ssid), json["ssid"]);   
         snprintf(password, sizeof(password), json["pwd"]);   
         snprintf(other, sizeof(other), json["other"]);   
-        snprintf(name, sizeof(name), json["name"]);   
-        priority = atoi(json["priority"]);
+        type = json["type"];
+        priority = json["priority"];
         sleepTimeS = json["sleepTimes"];
         echo();
       } 
