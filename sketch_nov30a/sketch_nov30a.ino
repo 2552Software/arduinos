@@ -13,15 +13,18 @@
 #include <ArduinoLog.h>
 #include <esp_event.h>
 
+class myLog : public Logging{
+  
+};
+
 #define ISMAIN
 #include "state.h"
 #include "connections.h"
+
+/*
 #include "camera.h"
-
-State state;
-Connections connections(&state);
 Camera camera;
-
+*/
 #if !(defined ESP32 )
 #error Please select the some sort of ESP32 board in the Tools/Board
 #endif
@@ -51,9 +54,9 @@ void setup(){
 
   Wire.begin();
   SPI.begin();
-
   state.setup();
-  connections.setup();
+  connections.setup(state.ssid, state.password);
+/*
   camera.setup();
 
   char text[32];
@@ -66,18 +69,22 @@ void setup(){
   if (state.priority != 1){
     delay(1000*state.priority);
   }
+  */
 }
 
 void loop(){
+
   connections.loop();
+  
+  /*
 
   static int count = 0;
-  char name[sizeof(State::name)+11];
-  snprintf(name, 16, "%s.%10lu.jpg", state.name, count); // just use incrementor and unique name/type bugbug todo
+  char name[sizeof(State::name)+21];
+  snprintf(name, sizeof(name), "%s.%lu.jpg", state.name, count); // just use incrementor and unique name/type bugbug todo
   ++count;
   
   camera.captureAndSend(name, connections);
-
+*/
   // figure out sleep next bugbug to do
   /*
   state.powerSleep();

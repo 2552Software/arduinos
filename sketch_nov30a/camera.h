@@ -29,7 +29,6 @@ ArduCAM myCAM(OV5642, CS);
 #endif
 
 
-
 class Camera {
 public:
 

@@ -6,8 +6,8 @@
 
 class Connections {
 public:
-  Connections(State*instate){isSoftAP = false;state = instate;}
-  void setup();
+  Connections(){isSoftAP = false;}
+  void setup(char *ssid, char *pwd=nullptr);
   void loop();
   bool sendToMQTT(const char*topic, JsonObject& root);
   bool sendToMQTT(const char*topic, const char*msg);
@@ -21,13 +21,14 @@ public:
   void makeAP(char *ssid, char*pwd);
   void connectMQTT();
   void trace(const char*msg);
-  State*state=nullptr;
 private:
+  char ssid[MAX_SSID_LEN];
+  char password[MAX_PWD_LEN];
   static void WiFiEvent(WiFiEvent_t event);
   bool isSoftAP;
-  void connect(); // call inside sends so we can optimzie as needed
+  void connect();
   uint8_t waitForResult(int connectTimeout);
   static void  input(char* topic, byte* payload, unsigned int length);
 } ;
-
+extern Connections connections;
 #endif

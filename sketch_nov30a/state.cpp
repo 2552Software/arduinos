@@ -7,7 +7,8 @@
 #include "state.h"
 
 void State::setup(){
-  Log.notice(F("mounting file system"));
+  setDefault();
+  Log.notice(F("setup, start by mounting file system"));
   // Next lines have to be done ONLY ONCE!!!!!When SPIFFS is formatted ONCE you can comment these lines out!!
   //Serial.println("Please wait 30 secs for SPIFFS to be formatted");
   //SPIFFS.format();
@@ -39,15 +40,22 @@ void State::powerSleep(){ // sleep when its ok to save power
 }
 
 void State::echo(){
-  Log.notice(F("name %s, ssid: %s pwd %s: other: %s, sleep time in seconds %d"), name, ssid, password, other, sleepTimeS);
+  Log.notice(F("name %s, ssid: %s, pwd %s: other: %s, sleep time in seconds %d"), name, ssid, password, other, sleepTimeS);
 }
 
 void State::setDefault(){
-  Log.notice(F("set default State"));
+  Log.notice(F("set default State ssid %s"), SSID);
+ 
   snprintf(ssid, sizeof(ssid), SSID);   
-  snprintf(password, sizeof(password), PWD);   
+  if (PWD) {
+    snprintf(password, sizeof(password), PWD);  
+  }
+  else {
+    *password = '\0';
+  }
+   
   uint64_t chipid = ESP.getEfuseMac();
-  snprintf(name, sizeof(name), "cam1-%X%X",(uint16_t)(chipid>>32), (uint32_t)chipid);   
+  snprintf(name, sizeof(name), "cam-%X%X",(uint16_t)(chipid>>32), (uint32_t)chipid);   
   other[0] = '\0';
   sleepTimeS=10;
   priority = 1; // each esp can have a start priority defined by initial sleep 
@@ -116,3 +124,6 @@ void State::get(){
 
   echo();
 }
+
+State state = State();
+

@@ -13,7 +13,6 @@ static const char* PWD = NULL; // never set here, set in the run time that store
 
 class State {
 public:
-	State() { setDefault(); }
 	void setup();
 	void powerSleep(); // sleep when its ok to save power
 	char name[MAX_SSID_LEN];  // everyone needs a unique name, defaults to esp id
@@ -29,5 +28,5 @@ public:
 private:
 	const char *defaultConfig = "/config.json";
 };
-
+extern State state;
 #endif

@@ -87,20 +87,20 @@ uint8_t Connections::waitForResult(int connectTimeout) {
 
 // allow for reconnect, can be called often it needs to be fast
 void Connections::connect(){
-  if (!state) {
-    Log.error("state required - abort");
-    return;
+  if (*ssid == '\0'){
+      Log.error("missing ssid FAIL");
+      return;
   }
   //https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/include/wl_definitions.h
   if (!WiFi.isConnected()){
     Log.trace(F("WiFi.status() != WL_CONNECTED"));
-    if (state->password[0] != '\0'){
-      Log.notice("Connect to WiFi... %s %s", state->ssid, state->password);
-      WiFi.begin(state->ssid, state->password);
+    if (*password != '\0'){
+      Log.notice("Connect to WiFi... %s %s", ssid, password);
+      WiFi.begin(ssid, password);
     }
     else {
-      Log.notice("Connect to WiFi... %s", state->ssid);
-      WiFi.begin(state->ssid);
+      Log.notice("Connect to WiFi... %s", ssid);
+      WiFi.begin(ssid);
     }
     waitForResult(10000);
     if (!WiFi.isConnected()) {
@@ -161,8 +161,15 @@ void Connections::makeAP(char *ssid, char*pwd){
     isSoftAP = true; //todo bugbug PI will need to keep trying to connect to this AP
 }
 
-void Connections::setup(){
-  Log.trace(F("Connections::setup, server %s, port %d"), ipServer, MQTTport);
+void Connections::setup(char *ssidIn, char *pwd){
+  snprintf(ssid, sizeof(ssid), ssidIn);   
+  if (pwd){
+    snprintf(password, sizeof(password), pwd);  
+  }
+  else {
+    *password = '\0';
+  }
+  Log.trace(F("Connections::setup, server %s, port %d, ssid %s"), ipServer, MQTTport, ssid);
   //put a copy in here when ready blynk_token[33] = "YOUR_BLYNK_TOKEN";//todo bugbug
   mqttClient.setServer(ipServer, MQTTport);
   mqttClient.setCallback(input);
@@ -196,3 +203,7 @@ void Connections::WiFiEvent(WiFiEvent_t event) {
     Log.notice(text); //bugbug todo get this to send via mqtt
   }
 }
+
+
+Connections connections = Connections();
+
