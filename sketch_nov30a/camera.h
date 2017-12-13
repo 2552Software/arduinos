@@ -50,5 +50,5 @@ private:
   void initCam();
 };
 
-
+extern Camera camera;
 #endif

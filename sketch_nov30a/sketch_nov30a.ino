@@ -13,21 +13,19 @@
 #include <ArduinoLog.h>
 #include <esp_event.h>
 
+#if !(defined ESP32 )
+#error Please select the some sort of ESP32 board in the Tools/Board
+#endif
+
 class myLog : public Logging{
-  
+  // figure how to use this then send over mqtt, will be cool
 };
 
 #define ISMAIN
 #include "state.h"
 #include "connections.h"
-
-/*
 #include "camera.h"
-Camera camera;
-*/
-#if !(defined ESP32 )
-#error Please select the some sort of ESP32 board in the Tools/Board
-#endif
+
 
 //Version 2,set GPIO0 as the slave select :
 
@@ -56,12 +54,14 @@ void setup(){
   SPI.begin();
   state.setup();
   connections.setup(state.ssid, state.password);
-/*
   camera.setup();
 
+/* figure this mqtt logging out
   char text[32];
   snprintf(text, 32, "device %s setup", "find this"); 
   connections.trace(text); // not sure but maybe something is wrong
+  */
+/*
 
   // put all other code we can below camera setup to give it time to setup
   
@@ -76,15 +76,12 @@ void loop(){
 
   connections.loop();
   
-  /*
-
   static int count = 0;
   char name[sizeof(State::name)+21];
   snprintf(name, sizeof(name), "%s.%lu.jpg", state.name, count); // just use incrementor and unique name/type bugbug todo
   ++count;
   
   camera.captureAndSend(name, connections);
-*/
   // figure out sleep next bugbug to do
   /*
   state.powerSleep();

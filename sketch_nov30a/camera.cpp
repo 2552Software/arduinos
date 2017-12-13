@@ -220,5 +220,5 @@ void Camera::captureAndSend(const char * path, Connections&connections){
   } 
   delete buf;
 }
-
+Camera camera = Camera();
 
