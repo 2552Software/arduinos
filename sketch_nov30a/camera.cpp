@@ -157,12 +157,14 @@ void Camera::captureAndSend(const char * name, const char * filename, Connection
      return;
   }
   char topic[sizeof(State::name)+20];
-  snprintf(topic, sizeof(topic), "%s.%s.jpg", name, filename);
+  snprintf(topic, sizeof(topic), "%s.%s", name, filename);
+  char path[sizeof(State::name)*2]; //bugbug todo get these sizes right
+  snprintf(path, sizeof(path), "%s.jpg", filename);
 
   // let reader know we are coming so they can start saving data
   DynamicJsonBuffer jsonBuffer;
   JsonObject& JSONencoder = jsonBuffer.createObject();
-  JSONencoder["path"] = filename; // also name of topic with data in messages further on
+  JSONencoder["path"] = path; // also name of topic with data in messages further on
   JSONencoder["datatopic"] = topic;
   connections.sendToMQTT("dataready", JSONencoder);
 
@@ -189,7 +191,7 @@ void Camera::captureAndSend(const char * name, const char * filename, Connection
         // send MQTT start xfer message
         DynamicJsonBuffer jsonBuffer;
         JsonObject& JSONencoder = jsonBuffer.createObject();
-        JSONencoder["path"] = filename; // also name of topic with data
+        JSONencoder["path"] = path; // also name of topic with data
         JSONencoder["len"] = total; // server can compare len with actual data lenght to make sure data was not lost
         JSONencoder["datatopic"] = topic;
         connections.sendToMQTT("datafinal", JSONencoder);

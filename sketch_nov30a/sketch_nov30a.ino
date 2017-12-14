@@ -78,7 +78,7 @@ void loop(){
   
   char fileName[sizeof(State::name)+21];
   // for at least now make name just a number as assume elsehwere json accounts for a more unique name
-  snprintf(fileName, sizeof(fileName), "%lu.jpg", state.count++); // just use incrementor and unique name/type bugbug todo
+  snprintf(fileName, sizeof(fileName), "%lu", state.count++); // just use incrementor and unique name/type bugbug todo
   state.set(); // count needs to be saved
   
   camera.captureAndSend(state.name, fileName, connections);
