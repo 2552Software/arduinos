@@ -33,7 +33,7 @@ class Camera {
 public:
 
   void setup();
-  void captureAndSend(const char * path, Connections&connections);
+  void captureAndSend(const char * name, const char * filename, Connections&connections);
   void turnOff(){
       Log.trace(F("cam off"));
       digitalWrite(CAM_POWER_ON, LOW);//camera power off

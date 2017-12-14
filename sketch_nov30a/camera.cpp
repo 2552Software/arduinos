@@ -126,7 +126,7 @@ void Camera::setup(){
 }
 
 //send via mqtt, mqtt server will turn to B&W and see if there are changes ie motion, of so it will send it on
-void Camera::captureAndSend(const char * path, Connections&connections){
+void Camera::captureAndSend(const char * name, const char * filename, Connections&connections){
   // not sure about this one yet
   #define MQTT_HEADER_SIZE 32 //5 + 2+strlen(topic)
 
@@ -156,10 +156,14 @@ void Camera::captureAndSend(const char * path, Connections&connections){
      connections.error("no mem");
      return;
   }
+  char topic[sizeof(State::name)+20];
+  snprintf(topic, sizeof(topic), "%s.%s.jpg", name, filename);
+
   // let reader know we are coming so they can start saving data
   DynamicJsonBuffer jsonBuffer;
   JsonObject& JSONencoder = jsonBuffer.createObject();
-  JSONencoder["path"] = path; // also name of topic with data
+  JSONencoder["path"] = filename; // also name of topic with data in messages further on
+  JSONencoder["datatopic"] = topic;
   connections.sendToMQTT("dataready", JSONencoder);
 
   // goto this next https://github.com/Links2004/arduinoWebSockets
@@ -180,13 +184,14 @@ void Camera::captureAndSend(const char * path, Connections&connections){
         // send buffer via mqtt here  
         total += i+1;
         Log.trace("total %d", total);
-        connections.sendToMQTT(path, buf, i+1); // will need to namic topic like "Cam1" kind of things once working bugbug
+        connections.sendToMQTT(topic, buf, i+1); // will need to namic topic like "Cam1" kind of things once working bugbug
         // now send notice
         // send MQTT start xfer message
         DynamicJsonBuffer jsonBuffer;
         JsonObject& JSONencoder = jsonBuffer.createObject();
-        JSONencoder["path"] = path; // also name of topic with data
+        JSONencoder["path"] = filename; // also name of topic with data
         JSONencoder["len"] = total; // server can compare len with actual data lenght to make sure data was not lost
+        JSONencoder["datatopic"] = topic;
         connections.sendToMQTT("datafinal", JSONencoder);
         is_header = false;
         i = 0;
@@ -200,7 +205,7 @@ void Camera::captureAndSend(const char * path, Connections&connections){
           //Write MQTT_MAX_PACKET_SIZE bytes image data
           myCAM.CS_HIGH();
           total += i+1;
-          connections.sendToMQTT(path, buf, i+1);
+          connections.sendToMQTT(topic, buf, i+1);
           i = 0; // back to start of buffer
           buf[i++] = temp;
           myCAM.CS_LOW();

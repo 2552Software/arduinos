@@ -1,4 +1,4 @@
-//https://arduinojson.org/faq/esp32/
+ //https://arduinojson.org/faq/esp32/
 
 /* core camera, uses MQTT to send data in small chuncks.  
  *  need to figure license and copy right etc yet
@@ -30,7 +30,7 @@ class myLog : public Logging{
 //Version 2,set GPIO0 as the slave select :
 
 //https://github.com/thijse/Arduino-Log/blob/master/ArduinoLog.h
-int logLevel = LOG_LEVEL_VERBOSE; // 0-LOG_LEVEL_VERBOSE, will be very slow unless 0 (none) or 1 (LOG_LEVEL_FATAL)
+int logLevel = LOG_LEVEL_ERROR; //LOG_LEVEL_VERBOSE; // 0-LOG_LEVEL_VERBOSE, will be very slow unless 0 (none) or 1 (LOG_LEVEL_FATAL)
 
 //todo bugbug move to a logging class and put a better time date stamp
 void printTimestamp(Print* _logOutput) {
@@ -76,12 +76,12 @@ void loop(){
 
   connections.loop();
   
-  static int count = 0;
-  char name[sizeof(State::name)+21];
-  snprintf(name, sizeof(name), "%s.%lu.jpg", state.name, count); // just use incrementor and unique name/type bugbug todo
-  ++count;
+  char fileName[sizeof(State::name)+21];
+  // for at least now make name just a number as assume elsehwere json accounts for a more unique name
+  snprintf(fileName, sizeof(fileName), "%lu.jpg", state.count++); // just use incrementor and unique name/type bugbug todo
+  state.set(); // count needs to be saved
   
-  camera.captureAndSend(name, connections);
+  camera.captureAndSend(state.name, fileName, connections);
   // figure out sleep next bugbug to do
   /*
   state.powerSleep();

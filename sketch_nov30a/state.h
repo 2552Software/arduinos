@@ -20,7 +20,8 @@ public:
 	char ssid[MAX_SSID_LEN];
 	char password[MAX_PWD_LEN];
 	char other[16];
-	uint32_t priority;
+  uint32_t count=0; // track count across reboots
+	uint32_t priority=0;
   uint32_t type=0; // 0 is cam
 	int sleepTimeS;
 	void set();

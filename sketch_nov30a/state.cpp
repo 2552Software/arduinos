@@ -40,7 +40,7 @@ void State::powerSleep(){ // sleep when its ok to save power
 }
 
 void State::echo(){
-  Log.notice(F("name %s, type %d, ssid: %s, pwd %s: other: %s, sleep time in seconds %d"), name, type, ssid, password, other, sleepTimeS);
+  Log.notice(F("name %s, type %d, ssid: %s, pwd %s: other: %s, count %d, sleep time in seconds %d"), name, type, ssid, password, other, count, sleepTimeS);
 }
 
 void State::setDefault(){
@@ -59,6 +59,7 @@ void State::setDefault(){
   other[0] = '\0';
   sleepTimeS=10;
   type = 0;
+  count = 0;
   priority = 1; // each esp can have a start priority defined by initial sleep 
   echo();
 }
@@ -72,16 +73,16 @@ void State::set(){
       Log.error("failed to open config file for writing");
     }
     else {
+      Log.notice("write config file");
       json["name"] = name;
       json["type"] = type;
       json["ssid"] = ssid;
       json["pwd"] = password;
       json["other"] = other;
       json["priority"] = priority;
+      json["count"] = count;
       json["sleepTimeS"] = sleepTimeS;
-      Log.notice("config.json contents");
       echo();
-      json.prettyPrintTo(Serial);
       json.printTo(configFile);
       configFile.close();
     }
@@ -109,6 +110,7 @@ void State::get(){
         snprintf(other, sizeof(other), json["other"]);   
         type = json["type"];
         priority = json["priority"];
+        count = json["count"];
         sleepTimeS = json["sleepTimes"];
         echo();
       } 
