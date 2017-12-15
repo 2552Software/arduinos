@@ -74,14 +74,19 @@ void setup(){
 
 void loop(){
 
+
   connections.loop();
   
-  char fileName[sizeof(State::name)+21];
+  char buf[128];//bugbug get better sizing
+  snprintf(buf, sizeof(buf), "hearbeat %lu", state.count); // just use incrementor and unique name/type bugbug todo
+  connections.trace(buf);
+
   // for at least now make name just a number as assume elsehwere json accounts for a more unique name
-  snprintf(fileName, sizeof(fileName), "%lu", state.count++); // just use incrementor and unique name/type bugbug todo
+  snprintf(buf, sizeof(buf), "%lu", state.count++); // just use incrementor and unique name/type bugbug todo
   state.set(); // count needs to be saved
+
   
-  camera.captureAndSend(state.name, fileName, connections);
+  camera.captureAndSend(state.name, buf, connections);
   // figure out sleep next bugbug to do
   /*
   state.powerSleep();
