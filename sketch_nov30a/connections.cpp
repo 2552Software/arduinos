@@ -14,6 +14,7 @@ void Connections::trace(const char*msg){
   sendToMQTT("trace", JSONencoder);
   Log.trace(msg);
 }
+// pubsubclient " -2 means the network connection couldn't be established"
 void Connections::error(const char*msg){
   DynamicJsonBuffer jsonBuffer;
   JsonObject& JSONencoder = jsonBuffer.createObject();
@@ -115,7 +116,7 @@ void Connections::connect(){
       Log.notice("Connect to WiFi... %s", state.ssid);
       WiFi.begin(state.ssid);
     }
-    waitForResult(10000);
+    waitForResult(5000);
     if (!WiFi.isConnected()) {
       Log.error(F("something went horribly wrong"));
       return;
@@ -181,13 +182,13 @@ void Connections::setup(const State& stateIn){
   }
   state = stateIn;
   Log.trace(F("Connections::setup, server %s, port %d, ssid %s"), ipServer, MQTTport, state.ssid); //bugbug todo ipServer and port should be in state
+  WiFi.onEvent(WiFiEvent);
+  WiFi.mode(WIFI_STA); // any ESP can be an AP if main AP is not found.
+  WiFi.setAutoReconnect(true); // let system auto reconnect for us
   //put a copy in here when ready blynk_token[33] = "YOUR_BLYNK_TOKEN";//todo bugbug
   mqttClient.setServer(ipServer, MQTTport);
   mqttClient.setCallback(input);
   mqttClient.setClient(wifiClient);
-  WiFi.onEvent(WiFiEvent);
-  WiFi.mode(WIFI_STA); // any ESP can be an AP if main AP is not found.
-  WiFi.setAutoReconnect(true); // let system auto reconnect for us
 }
 
 

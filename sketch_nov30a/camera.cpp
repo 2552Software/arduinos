@@ -26,20 +26,23 @@ void Camera::capture(){
 bool  Camera::findCamera(){
   uint8_t vid, pid;
 
-  delay(5000); // make things are warmed up
-
 #if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-  //Check if the camera module type is OV2640
-  myCAM.wrSensorReg8_8(0xff, 0x01);
-  myCAM.rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
-  myCAM.rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
-  if ((vid != 0x26 ) && (( pid != 0x41 ) || ( pid != 0x42 ))){
-    Log.trace(F("OV2640 not detected, vid %x, pid %x"), vid, pid);
+  while(1){
+    //Check if the camera module type is OV2640
+    myCAM.wrSensorReg8_8(0xff, 0x01);
+    myCAM.rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
+    myCAM.rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
+    if ((vid != 0x26 ) && (( pid != 0x41 ) || ( pid != 0x42 ))){
+      Log.trace(F("ACK CMD Can't find OV2640 module!"));
+      delay(1000);
+      continue;
+    }
+    else{
+      Log.trace(F("ACK CMD OV2640 detected."));
+      return true;
+    } 
   }
-  else {
-    connections.trace("OV2640 detected");
-    return true;
-  }
+  // 5* not tested/dev'd yet but I assume it will need the above loop
 #elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
   //Check if the camera module type is OV5640
   myCAM.wrSensorReg16_8(0xff, 0x01);
@@ -98,9 +101,12 @@ void Camera::setup(){
   while(1){
     //Check if the ArduCAM SPI bus is OK
     myCAM.write_reg(ARDUCHIP_TEST1, 0x55);
+    uint8_t byte = myCAM.read_reg(ARDUCHIP_TEST1);
     if(myCAM.read_reg(ARDUCHIP_TEST1) != 0x55){
-      connections.error("SPI interface Error!");
-      delay(20);
+      char text[62];
+      snprintf(text, sizeof(text), "SPI interface Error! %x", byte); 
+      connections.error(text);
+      delay(200);
       continue;
     }
     else {
@@ -186,7 +192,8 @@ void Camera::captureAndSend(const char * name, const char * filename, Connection
         // send buffer via mqtt here  
         total += i+1;
         Log.trace("total %d", total);
-        connections.sendToMQTT(topic, buf, i+1); // will need to namic topic like "Cam1" kind of things once working bugbug
+        //datacam1 each device needs its own subscription put in state etc, like use name
+        connections.sendToMQTT("datacam1", buf, i+1); // will need to namic topic like "Cam1" kind of things once working bugbug
         // now send notice
         // send MQTT start xfer message
         DynamicJsonBuffer jsonBuffer;
@@ -207,7 +214,7 @@ void Camera::captureAndSend(const char * name, const char * filename, Connection
           //Write MQTT_MAX_PACKET_SIZE bytes image data
           myCAM.CS_HIGH();
           total += i+1;
-          connections.sendToMQTT(topic, buf, i+1);
+          connections.sendToMQTT("datacam1", buf, i+1);
           i = 0; // back to start of buffer
           buf[i++] = temp;
           myCAM.CS_LOW();
@@ -219,6 +226,7 @@ void Camera::captureAndSend(const char * name, const char * filename, Connection
       buf[i++] = temp_last;
       buf[i++] = temp;   
     } 
+    delayMicroseconds(15);
   } 
   delete buf;
 }

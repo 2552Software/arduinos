@@ -30,7 +30,7 @@ class myLog : public Logging{
 //Version 2,set GPIO0 as the slave select :
 
 //https://github.com/thijse/Arduino-Log/blob/master/ArduinoLog.h
-int logLevel = LOG_LEVEL_ERROR; //LOG_LEVEL_VERBOSE; // 0-LOG_LEVEL_VERBOSE, will be very slow unless 0 (none) or 1 (LOG_LEVEL_FATAL)
+int logLevel = LOG_LEVEL_VERBOSE; //LOG_LEVEL_VERBOSE; LOG_LEVEL_ERROR; // 0-LOG_LEVEL_VERBOSE, will be very slow unless 0 (none) or 1 (LOG_LEVEL_FATAL)
 
 //todo bugbug move to a logging class and put a better time date stamp
 void printTimestamp(Print* _logOutput) {
@@ -85,8 +85,10 @@ void loop(){
   snprintf(buf, sizeof(buf), "%lu", state.count++); // just use incrementor and unique name/type bugbug todo
   state.set(); // count needs to be saved
 
-  
   camera.captureAndSend(state.name, buf, connections);
+
+  delay(500); // roughly 10fps bugbug todo make this a config then allow remote config via mqtt 
+  
   // figure out sleep next bugbug to do
   /*
   state.powerSleep();

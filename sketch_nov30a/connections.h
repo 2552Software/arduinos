@@ -4,7 +4,7 @@
 #include <PubSubClient.h>
 #include "state.h"
 
-static const char* ipServer = "192.168.88.100";// for now assume this, 100-200 are servers
+static const char* ipServer = "192.168.88.200";//"192.168.88.100";// for now assume this, 100-200 are servers
 static const int MQTTport = 1883;
 
 class Connections {
