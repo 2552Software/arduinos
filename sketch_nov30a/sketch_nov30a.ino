@@ -21,7 +21,7 @@ class myLog : public Logging{
   // figure how to use this then send over mqtt, will be cool
 };
 
-#define ISMAIN
+#define ISMAIN 
 #include "state.h"
 #include "connections.h"
 #include "camera.h"
@@ -87,7 +87,7 @@ void loop(){
 
   camera.captureAndSend(state.name, buf, connections);
 
-  delay(500); // roughly 10fps bugbug todo make this a config then allow remote config via mqtt 
+  delay(1000); // roughly 10fps bugbug todo make this a config then allow remote config via mqtt 
   
   // figure out sleep next bugbug to do
   /*

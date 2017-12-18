@@ -7,8 +7,82 @@
 
 #include "camera.h"
 
+// work for ours?
+void set_Compress_quality(uint8_t quality)  {
+  switch(quality)    {
+    case high_quality:
+      myCAM.wrSensorReg16_8(0x4407, 0x02);
+      break;
+    case default_quality:
+      myCAM.wrSensorReg16_8(0x4407, 0x04);
+      break;
+    case low_quality:
+      myCAM.wrSensorReg16_8(0x4407, 0x08);
+      break;
+  }
+}
+// some sort of magic from  https://github.com/ArduCAM/Arduino/issues/77
+void shutterSpeed(){
+  delay(1000);
+  uint8_t R4; //Register 4: bits 0 and 1 correspond to bits 0 and 1 of exposure multiplier
+  uint8_t R10; //Register 10: the 8 bits correspond to bits 2-9 of exposure multiplier
+  uint8_t R13; // Register 13: bit 0 switches auto exposure control on(1)/off(0); bit 2 switches auto gain control on(1)/off(0)
+  uint8_t R45; // Register 45: bits 0-5 correspond to bits 10-15 of exposure multiplier
+  myCAM.wrSensorReg8_8(0xFF, 0x01);
+  myCAM.rdSensorReg8_8(0x13,&R13);
+  myCAM.rdSensorReg8_8(0x04,&R4);
+  myCAM.rdSensorReg8_8(0x10,&R10);
+  myCAM.rdSensorReg8_8(0x45,&R45);
+  
+  //uint16_t Exp[]={50,500,5000,50000}; //Exposure time in us (micro seconds) one millionth of a second.
+  uint16_t Exp[]={5,50,500,5000}; //Exposure time in us (micro seconds) one millionth of a second.
+  for (int j = 0; j<4; j++){
+    uint16_t a=round(Exp[j]/53.39316); //DEC number corresponding to exposure time
+    // a = 1 << 15;
+    uint16_t r4shift=14;
+    uint16_t r10leftshift=6;
+    uint16_t r10rightshift=8;
+    uint16_t r45leftshift=10;
+    uint16_t b = a<<r4shift;
+    uint8_t r4 = b >> r4shift; //Extracts bits 0 and 1
+    uint8_t r10= (a << r10leftshift) >> r10rightshift; // Extracts bits 2-9
+    uint8_t r45= a >> r45leftshift; // Extracts bits 10-15
+    
+    for (int i=0; i<2; i++){
+      bitWrite(R4,i,bitRead(r4,i));
+    }
+   
+    for (int i=0; i<8; i++){
+     bitWrite(R10,i,bitRead(r10,i));
+    }
+    
+    for (int i=0; i<6; i++){
+      bitWrite(R45,i,bitRead(r45,i));
+    }
+    
+    bitClear(R13,0);
+    // bitClear(R13,2);
+    
+    myCAM.wrSensorReg8_8(0x13,(int) R13);
+    myCAM.wrSensorReg8_8(0x04,(int) R4);
+    myCAM.wrSensorReg8_8(0x10,(int) R10);
+    myCAM.wrSensorReg8_8(0x45,(int) R45);
+    
+    uint8_t new13, new4, new10, new45;
+    
+    myCAM.rdSensorReg8_8(0x13,&new13);
+    myCAM.rdSensorReg8_8(0x04,&new4);
+    myCAM.rdSensorReg8_8(0x10,&new10);
+    myCAM.rdSensorReg8_8(0x45,&new45);
+  }
+}
+
+void setMode(int);
+
 // get from the camera
 void Camera::capture(){
+
+        
   int total_time = 0;
 
   Log.trace(F("start capture"));
@@ -33,12 +107,12 @@ bool  Camera::findCamera(){
     myCAM.rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
     myCAM.rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
     if ((vid != 0x26 ) && (( pid != 0x41 ) || ( pid != 0x42 ))){
-      Log.trace(F("ACK CMD Can't find OV2640 module!"));
+      Log.trace(F("damn it ACK CMD Can't find OV2640 module! vid == %x, pid == %x"), vid, pid);
       delay(1000);
       continue;
     }
     else{
-      Log.trace(F("ACK CMD OV2640 detected."));
+      Log.trace(F("ACK CMD OV2640 detected, how lucky you are"));
       return true;
     } 
   }
@@ -78,8 +152,8 @@ void Camera::initCam(){
   myCAM.InitCAM();
   //bugbug todo allow mqtt based set of these, then a restart if needed, store in config file
 #if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-    myCAM.OV2640_set_JPEG_size(OV2640_800x600); //OV2640_320x240 OV2640_800x600 OV2640_640x480 OV2640_1024x768 OV2640_1600x1200
-    connections.trace("init OV2640_800x600");
+    myCAM.OV2640_set_JPEG_size(OV2640_1024x768); //OV2640_320x240 OV2640_800x600 OV2640_640x480 OV2640_1024x768 OV2640_1600x1200
+    connections.trace("init OV2640_640x480");
 #elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
     myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
     myCAM.OV5640_set_JPEG_size(OV5640_320x240);
@@ -89,7 +163,13 @@ void Camera::initCam(){
     myCAM.OV5642_set_JPEG_size(OV5642_320x240);  
     connections.trace("init OV5642_320x240");
 #endif
-
+//When you do operate on camera, you should use 
+myCAM.clear_bit(ARDUCHIP_GPIO,GPIO_PWDN_MASK);
+myCAM.set_bit(ARDUCHIP_GPIO,GPIO_PWDN_MASK);
+//only set in day light shutterSpeed();
+//set_Compress_quality(low_quality); // send high quality? 
+myCAM.OV2640_set_Special_effects(BW);
+//myCAM.OV2640_set_Brightness(Brightness2); 
 }
 // SPI must be setup
 void Camera::setup(){
@@ -128,9 +208,151 @@ void Camera::setup(){
   }
 
   initCam();
+  
   delay(1000); // let things setup
 }
-
+// grab this one too https://github.com/ArduCAM/Arduino/issues/77
+void setMode(int val){
+  
+  return;
+  /* great examples here...
+  int temp = 0x84;
+  Serial.println(val);
+  switch (val)
+  {
+    case 0:
+      myCAM.OV2640_set_JPEG_size(OV2640_160x120);
+      delay(1000);
+      Serial.println(F("ACK CMD switch to OV2640_160x120"));
+    break;
+    case 1:
+      myCAM.OV2640_set_JPEG_size(OV2640_176x144);delay(1000);
+      Serial.println(F("ACK CMD switch to OV2640_176x144"));
+    break;
+    case 2: 
+      myCAM.OV2640_set_JPEG_size(OV2640_320x240);delay(1000);
+      Serial.println(F("ACK CMD switch to OV2640_320x240"));
+    break;
+    case 3:
+    myCAM.OV2640_set_JPEG_size(OV2640_352x288);delay(1000);
+    Serial.println(F("ACK CMD switch to OV2640_352x288"));
+    break;
+    case 4:
+      myCAM.OV2640_set_JPEG_size(OV2640_640x480);delay(1000);
+      Serial.println(F("ACK CMD switch to OV2640_640x480"));
+    break;
+    case 5:
+    myCAM.OV2640_set_JPEG_size(OV2640_800x600);delay(1000);
+    Serial.println(F("ACK CMD switch to OV2640_800x600"));
+    break;
+    case 6:
+     myCAM.OV2640_set_JPEG_size(OV2640_1024x768);delay(1000);
+     Serial.println(F("ACK CMD switch to OV2640_1024x768"));
+    break;
+    case 7:
+    myCAM.OV2640_set_JPEG_size(OV2640_1280x1024);delay(1000);
+    Serial.println(F("ACK CMD switch to OV2640_1280x1024"));
+    break;
+    case 8:
+    myCAM.OV2640_set_JPEG_size(OV2640_1600x1200);delay(1000);
+    Serial.println(F("ACK CMD switch to OV2640_1600x1200"));
+    break;
+    case 31:
+    myCAM.set_format(BMP);
+    myCAM.InitCAM();
+    #if !(defined (OV2640_MINI_2MP))        
+    myCAM.clear_bit(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);
+    #endif
+    myCAM.wrSensorReg16_8(0x3818, 0x81);
+    myCAM.wrSensorReg16_8(0x3621, 0xA7);
+    break;
+    case 40:
+    myCAM.OV2640_set_Light_Mode(Auto);
+    Serial.println(F("ACK CMD Set to Auto"));break;
+     case 41:
+    myCAM.OV2640_set_Light_Mode(Sunny);
+    Serial.println(F("ACK CMD Set to Sunny"));break;
+     case 42:
+    myCAM.OV2640_set_Light_Mode(Cloudy);
+    Serial.println(F("ACK CMD Set to Cloudy"));break;
+     case 43:
+    myCAM.OV2640_set_Light_Mode(Office);
+    Serial.println(F("ACK CMD Set to Office"));break;
+   case 44:
+    myCAM.OV2640_set_Light_Mode(Home);
+   Serial.println(F("ACK CMD Set to Home"));break;
+   case 45:
+    myCAM.OV2640_set_Color_Saturation(Saturation2); 
+     Serial.println(F("ACK CMD Set to Saturation+2"));break;
+   case 46:
+     myCAM.OV2640_set_Color_Saturation(Saturation1);
+     Serial.println(F("ACK CMD Set to Saturation+1"));break;
+   case 47:
+    myCAM.OV2640_set_Color_Saturation(Saturation0); 
+     Serial.println(F("ACK CMD Set to Saturation+0"));break;
+    case 48:
+    myCAM. OV2640_set_Color_Saturation(Saturation_1);
+     Serial.println(F("ACK CMD Set to Saturation-1"));break;
+    case 49:
+     myCAM.OV2640_set_Color_Saturation(Saturation_2);
+     Serial.println(F("ACK CMD Set to Saturation-2"));break; 
+   case 51:
+    myCAM.OV2640_set_Brightness(Brightness2); 
+     Serial.println(F("ACK CMD Set to Brightness+2"));break;
+   case 52:
+     myCAM.OV2640_set_Brightness(Brightness1); 
+     Serial.println(F("ACK CMD Set to Brightness+1"));break;
+   case 53:
+    myCAM.OV2640_set_Brightness(Brightness0); 
+     Serial.println(F("ACK CMD Set to Brightness+0"));break;
+    case 54:
+    myCAM. OV2640_set_Brightness(Brightness_1); temp = 0xff;
+     Serial.println(F("ACK CMD Set to Brightness-1"));break;
+    case 55:
+     myCAM.OV2640_set_Brightness(Brightness_2); temp = 0xff;
+     Serial.println(F("ACK CMD Set to Brightness-2"));break; 
+    case 56:
+      myCAM.OV2640_set_Contrast(Contrast2);temp = 0xff;
+     Serial.println(F("ACK CMD Set to Contrast+2"));break; 
+    case 57:
+      myCAM.OV2640_set_Contrast(Contrast1);temp = 0xff;
+     Serial.println(F("ACK CMD Set to Contrast+1"));break;
+     case 58:
+      myCAM.OV2640_set_Contrast(Contrast0);temp = 0xff;
+     Serial.println(F("ACK CMD Set to Contrast+0"));break;
+    case 59:
+      myCAM.OV2640_set_Contrast(Contrast_1);temp = 0xff;
+     Serial.println(F("ACK CMD Set to Contrast-1"));break;
+   case 60:
+      myCAM.OV2640_set_Contrast(Contrast_2);temp = 0xff;
+     Serial.println(F("ACK CMD Set to Contrast-2"));break;
+   case 61:
+    myCAM.OV2640_set_Special_effects(Antique);temp = 0xff;
+    Serial.println(F("ACK CMD Set to Antique"));break;
+   case 62:
+    myCAM.OV2640_set_Special_effects(Bluish);temp = 0xff;
+    Serial.println(F("ACK CMD Set to Bluish"));break;
+   case 63:
+    myCAM.OV2640_set_Special_effects(Greenish);temp = 0xff;
+    Serial.println(F("ACK CMD Set to Greenish"));break;  
+   case 64:
+    myCAM.OV2640_set_Special_effects(Reddish);temp = 0xff;
+    Serial.println(F("ACK CMD Set to Reddish"));break;  
+   case 65:
+    myCAM.OV2640_set_Special_effects(BW);temp = 0xff;
+    Serial.println(F("ACK CMD Set to BW"));break; 
+  case 66:
+    myCAM.OV2640_set_Special_effects(Negative);temp = 0xff;
+    Serial.println(F("ACK CMD Set to Negative"));break; 
+  case 67:
+    myCAM.OV2640_set_Special_effects(BWnegative);temp = 0xff;
+    Serial.println(F("ACK CMD Set to BWnegative"));break;   
+   case 68:
+    myCAM.OV2640_set_Special_effects(Normal);temp = 0xff;
+    Serial.println(F("ACK CMD Set to Normal"));break;     
+  }
+  */
+}
 //send via mqtt, mqtt server will turn to B&W and see if there are changes ie motion, of so it will send it on
 void Camera::captureAndSend(const char * name, const char * filename, Connections&connections){
   // not sure about this one yet
